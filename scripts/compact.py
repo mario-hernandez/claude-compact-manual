@@ -10,7 +10,7 @@ compressed transcript to the clipboard. Then /clear + Cmd+V starts a fresh
 session with the same context at 4-10% the size.
 
 Philosophy: deterministic rules, no LLM calls, 100% local, auditable.
-Repo: https://github.com/mario-hernandez/compact-manual-ti2wr
+Repo: https://github.com/mario-hernandez/claude-compact-manual
 """
 
 import argparse
