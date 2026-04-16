@@ -18,8 +18,8 @@ A Claude Code skill that compresses your session **deterministically** by readin
 ## TL;DR
 
 ```bash
-git clone https://github.com/mario-hernandez/compact-manual-ti2wr.git
-cd compact-manual-ti2wr
+git clone https://github.com/mario-hernandez/claude-compact-manual.git
+cd claude-compact-manual
 mkdir -p ~/.claude/skills/compact-manual/scripts
 cp SKILL.md ~/.claude/skills/compact-manual/
 cp scripts/compact.py ~/.claude/skills/compact-manual/scripts/
@@ -64,8 +64,8 @@ First time building a custom Claude Code skill? Relax, this is easier than it lo
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/mario-hernandez/compact-manual-ti2wr.git
-cd compact-manual-ti2wr
+git clone https://github.com/mario-hernandez/claude-compact-manual.git
+cd claude-compact-manual
 
 # 2. Copy the skill into your Claude directory
 mkdir -p ~/.claude/skills/compact-manual/scripts
@@ -380,7 +380,7 @@ This section documents the internal structure for contributors or auditors who w
 ### Repo structure
 
 ```
-compact-manual-ti2wr/
+claude-compact-manual/
 ├── README.md                  # this file
 ├── SKILL.md                   # frontmatter + skill documentation
 ├── scripts/
@@ -564,4 +564,4 @@ MIT License. See [LICENSE](LICENSE).
 
 Star the repo. It's the simplest signal that the tool is worth it. If I see more people using it, I'll keep iterating.
 
-**Other ways to help:** open an [issue](https://github.com/mario-hernandez/compact-manual-ti2wr/issues) with a weird JSONL that breaks it, a ratio that surprised you, or a flag you wish existed.
+**Other ways to help:** open an [issue](https://github.com/mario-hernandez/claude-compact-manual/issues) with a weird JSONL that breaks it, a ratio that surprised you, or a flag you wish existed.
