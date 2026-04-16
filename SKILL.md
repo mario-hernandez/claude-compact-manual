@@ -1,6 +1,6 @@
 ---
 name: compact-manual
-description: "Comprime la sesión Claude Code actual al portapapeles para hacer rewind+paste manual. Alternativa a /compact que NO resume con LLM sino que extrae el diálogo literal truncando solo outputs de tools. Usar cuando el usuario diga 'compacta la sesión', 'compact manual', 'limpia el contexto', o invoque /compact-manual."
+description: "Claude Code skill for deterministic context compaction. Compresses the current Claude Code session to the clipboard for a manual rewind+paste workflow. A deterministic alternative to /compact that extracts literal dialog and truncates only tool outputs — no LLM summarization. Use when the user says 'compact the session', 'compact-manual', 'clean the context', or invokes /compact-manual."
 argument-hint: "[conservative|aggressive|auto|--raw] [--preserve-code] [--dry-run] [--no-dedupe]"
 allowed-tools: Bash
 metadata:
@@ -8,76 +8,76 @@ metadata:
   version: 1.1
 ---
 
-## Qué hace
+## What it does
 
-Lee el JSONL de la sesión actual (`~/.claude/projects/-Users-mario/*.jsonl`, el más reciente), extrae el diálogo user/assistant, trunca tool_results verbosos (con preservación regex de errores completos), formatea como markdown transcript, copia al portapapeles con `pbcopy` y guarda backup en `~/.claude/compact-backups/`.
+Reads the current session's JSONL (auto-detects the project directory in `~/.claude/projects/`, picks the most recent file), extracts the user/assistant dialog, truncates verbose tool_results (with regex-based preservation of full errors), formats it as a markdown transcript, copies it to the clipboard with `pbcopy`, and saves a backup in `~/.claude/compact-backups/`.
 
-Luego el usuario ejecuta **`/clear`** (crea sesión nueva con JSONL limpio — la anterior queda archivada) y pega con `Cmd+V` para empezar con el transcript comprimido como único contexto.
+The user then runs **`/clear`** (creates a fresh session with a clean JSONL — the previous one is archived) and pastes with `Cmd+V` to start over with the compressed transcript as the sole context.
 
-## Cómo ejecutarla
+## How to run it
 
-Ejecutar el script con Bash, **pasando los argumentos del usuario con `$ARGUMENTS`**:
+Execute the script with Bash, **passing the user's arguments via `$ARGUMENTS`**:
 
 ```bash
 python3 ~/.claude/skills/compact-manual/scripts/compact.py $ARGUMENTS
 ```
 
-Si el usuario no pasó args, `$ARGUMENTS` queda vacío y el script corre en modo `conservative` por defecto.
+If the user passed no args, `$ARGUMENTS` is empty and the script runs in `conservative` mode by default.
 
-### Argumentos
+### Arguments
 
-| Arg | Efecto |
+| Arg | Effect |
 |-----|--------|
-| (ninguno) | Modo **conservative** (default). Trunca tool_results >2-3KB, conserva diálogo literal |
-| `aggressive` | Trunca tool_results muy corto (~600 chars), ideal >1.5MB sesión |
-| `auto` | Elige `aggressive` si sesión >1.5MB, `conservative` si <1.5MB, skip si <80KB |
-| `--raw` | **Modo ultra-literal**: sin truncar, sin dedup, sin post_compress. Solo elimina wrappers del harness (`<system-reminder>`, etc). Ratio ~9-15% pero fidelidad total. Úsalo cuando quieras preservar TODO sin decisiones automáticas |
-| `--preserve-code` | Nunca trunca agresivamente Read/Edit/Write (multiplica sus límites ×8) |
-| `--no-dedupe` | Desactiva dedup de tool_results idénticos |
-| `--dry-run` | Preview + stats sin copiar ni guardar backup |
-| `--session <path>` | Procesa un JSONL específico (default: más reciente en proyecto actual) |
-| `--no-backup` | No guarda backup (normalmente sí guarda, retiene últimos 20) |
-| `--no-clipboard-backup` | No guarda el clipboard anterior antes de sobrescribir |
+| (none) | **Conservative** mode (default). Truncates tool_results >2-3KB, keeps dialog literal |
+| `aggressive` | Truncates tool_results very short (~600 chars), ideal for sessions >1.5MB |
+| `auto` | Picks `aggressive` if session >1.5MB, `conservative` if <1.5MB, skips if <80KB |
+| `--raw` | **Ultra-literal mode**: no truncation, no dedup, no post_compress. Only strips harness wrappers (`<system-reminder>`, etc). Ratio ~9-15% but full fidelity. Use it when you want to preserve EVERYTHING without automatic decisions |
+| `--preserve-code` | Never aggressively truncates Read/Edit/Write (multiplies their limits by 8) |
+| `--no-dedupe` | Disables dedup of identical tool_results |
+| `--dry-run` | Preview + stats without copying or saving backup |
+| `--session <path>` | Processes a specific JSONL (default: most recent in current project) |
+| `--no-backup` | Does not save backup (normally saves, retains last 20) |
+| `--no-clipboard-backup` | Does not save the previous clipboard before overwriting |
 
-### Ejemplos de invocación
+### Invocation examples
 
 ```bash
 python3 ~/.claude/skills/compact-manual/scripts/compact.py                # default: conservative
 python3 ~/.claude/skills/compact-manual/scripts/compact.py aggressive
 python3 ~/.claude/skills/compact-manual/scripts/compact.py auto
-python3 ~/.claude/skills/compact-manual/scripts/compact.py --raw           # ultra-fidelidad
+python3 ~/.claude/skills/compact-manual/scripts/compact.py --raw           # ultra-fidelity
 python3 ~/.claude/skills/compact-manual/scripts/compact.py --dry-run
 python3 ~/.claude/skills/compact-manual/scripts/compact.py aggressive --preserve-code
 ```
 
-## Qué informar al usuario después
+## What to report to the user afterwards
 
-1. **Ratio de compresión** (original/comprimido, tokens ahorrados estimados)
-2. **Path del backup** guardado
-3. **Confirmación** de que está en el portapapeles
-4. **Instrucciones finales claras**:
-   - `/clear` (crea sesión nueva con JSONL limpio — la actual queda accesible via `/resume`)
-   - `Cmd+V` para pegar el transcript
-   - Enter para enviar
+1. **Compression ratio** (original/compressed, estimated tokens saved)
+2. **Path of the saved backup**
+3. **Confirmation** that it is on the clipboard
+4. **Clear final instructions**:
+   - `/clear` (creates a fresh session with a clean JSONL — the current one stays accessible via `/resume`)
+   - `Cmd+V` to paste the transcript
+   - Enter to send
 
-Importante: **NO sugerir ESC ESC** — en Claude Code eso es rewind de file edits (checkpoints de archivos), NO rewind de conversación. La forma correcta de empezar con contexto limpio es `/clear`.
+Important: **do NOT suggest ESC ESC** — in Claude Code that is a rewind of file edits (file checkpoints), NOT a conversation rewind. The correct way to start with a clean context is `/clear`.
 
-## Principios de diseño
+## Design principles
 
-- **No usa LLM para comprimir** → determinista, sin pérdida arbitraria. Tú eliges qué perder.
-- **Preserva diálogo literal** (user + assistant text) → el tejido narrativo queda intacto.
-- **Solo trunca tool_results** (donde está el 85% del peso según análisis empírico).
-- **Preserva errores completos** (regex matches en Bash/Task con contexto ±3 líneas).
-- **Backup automático** en `~/.claude/compact-backups/` (retiene 20 últimos).
-- **Ratios observados**: 4-5% en sesiones grandes (>1MB), 10-15% en sesiones medianas.
+- **Does not use an LLM to compress** → deterministic, no arbitrary loss. You choose what to drop.
+- **Preserves literal dialog** (user + assistant text) → the narrative fabric stays intact.
+- **Only truncates tool_results** (where 85% of the weight lives according to empirical analysis).
+- **Preserves full errors** (regex matches in Bash/Task with ±3 lines of context).
+- **Automatic backup** in `~/.claude/compact-backups/` (retains last 20).
+- **Observed ratios**: 4-5% on large sessions (>1MB), 10-15% on medium sessions.
 
-## Flow completo (para guiar al usuario)
+## Full flow (to guide the user)
 
 ```
-1. /compact-manual       ← skill procesa JSONL, transcript al portapapeles + backup
-2. /clear                ← sesión nueva con JSONL limpio (anterior archivada en /resume)
-3. Cmd+V                 ← pegar transcript comprimido
-4. Enter                 ← enviar, seguir trabajando con contexto comprimido
+1. /compact-manual       ← skill processes JSONL, transcript to clipboard + backup
+2. /clear                ← new session with clean JSONL (previous archived in /resume)
+3. Cmd+V                 ← paste the compressed transcript
+4. Enter                 ← send, keep working with the compressed context
 ```
 
-**Por qué `/clear` y no ESC ESC**: en Claude Code, ESC ESC revierte _ediciones de archivos_ (checkpoints locales), no la conversación. `/clear` sí crea una sesión completamente nueva con su propio JSONL, que es lo que queremos para que el próximo `/compact-manual` no procese la conversación vieja redundantemente.
+**Why `/clear` and not ESC ESC**: in Claude Code, ESC ESC reverts _file edits_ (local checkpoints), not the conversation. `/clear` does create a completely new session with its own JSONL, which is what we want so that the next `/compact-manual` does not reprocess the old conversation redundantly.
