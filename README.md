@@ -197,7 +197,7 @@ cat ~/.claude/compact-backups/20260416-143022-a3f9-conservative.md | pbcopy
 
 <div align="center">
 
-<img src="docs/images/compression-viz.png" alt="Compression visualization: 6.4MB to 289KB, 22x" width="100%"/>
+<img src="docs/images/compression-viz.jpg" alt="Compression visualization: 6.4MB to 289KB, 22x" width="100%"/>
 
 *Real measurement: 6.4 MB debugging session compressed to 289 KB (4.5% ratio, 22× smaller)*
 
