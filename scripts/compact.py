@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: MIT
-# Copyright (c) 2026 Mario Hernández
-"""
-compact-manual — Deterministic /compact alternative for Claude Code.
-
-Reads the current session JSONL from ~/.claude/projects/, extracts the literal
-user/assistant dialog, truncates only verbose tool_results, and copies the
-compressed transcript to the clipboard. Then /clear + Cmd+V starts a fresh
-session with the same context at 4-10% the size.
-
-Philosophy: deterministic rules, no LLM calls, 100% local, auditable.
-Repo: https://github.com/mario-hernandez/claude-compact-manual
-"""
+"""compact-manual: comprime la sesión Claude Code actual al portapapeles."""
 
 import argparse
 import hashlib
@@ -41,8 +29,8 @@ COMMAND_WRAP_RX = re.compile(r"<command-(?:name|message|args)>.*?</command-(?:na
 USAGE_BLOCK_RX = re.compile(r"<usage>.*?</usage>", re.DOTALL)
 AGENT_ID_LINE_RX = re.compile(r"^\s*agentId:\s*[a-f0-9]+.*$", re.MULTILINE)
 UUID_RX = re.compile(r"\b([0-9a-f]{8})-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b", re.I)
-OMIT_LINES_RX = re.compile(r"\[\.\.\.\s*(\d+)\s*lines omitted\s*\.\.\.\]")
-OMIT_ERR_RX = re.compile(r"\[errors preserved\]")
+OMIT_LINES_RX = re.compile(r"\[\.\.\.\s*(\d+)\s*líneas omitidas\s*\.\.\.\]")
+OMIT_ERR_RX = re.compile(r"\[errores preservados\]")
 ERROR_RX = re.compile(
     r"^\s*(?:Traceback\b|ERROR:|FATAL\b|panic:|\w+(?:Error|Exception):|FAIL(?:ED)?\b|BUILD FAILED|✗)",
     re.MULTILINE,
@@ -139,7 +127,7 @@ def post_compress(text):
     text = UUID_RX.sub(r"\1…", text)
     text = OMIT_LINES_RX.sub(r"⋯\1", text)
     text = OMIT_ERR_RX.sub("⚠", text)
-    text = re.sub(r"→ \(empty\)", "→ ∅", text)
+    text = re.sub(r"→ \(vacío\)", "→ ∅", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text
 
@@ -165,12 +153,12 @@ def truncate_lines(text, head_n, tail_n, preserve_errors=True):
     removed = total - head_n - tail_n
     parts = ["\n".join(head)]
     if removed > 0:
-        parts.append(f"    [... {removed} lines omitted ...]")
+        parts.append(f"    [... {removed} líneas omitidas ...]")
     if tail:
         parts.append("\n".join(tail))
     out = "\n".join(parts)
     if errors:
-        out += "\n    [errors preserved]\n" + "\n".join(dict.fromkeys(errors[:10]))
+        out += "\n    [errores preservados]\n" + "\n".join(dict.fromkeys(errors[:10]))
     return out
 
 
@@ -250,7 +238,7 @@ def stringify_result_content(content):
 def format_tool_result(tool_name, content, mode, preserve_code):
     text = stringify_result_content(content).strip()
     if not text:
-        return "  → (empty)"
+        return "  → (vacío)"
 
     limits_map = LIMITS[mode]
     if preserve_code and tool_name in ("Read", "Edit", "MultiEdit", "Write"):
@@ -265,13 +253,13 @@ def format_tool_result(tool_name, content, mode, preserve_code):
 
     if strategy == "summary":
         n_lines = text.count("\n") + 1
-        return f"  → [{n_lines} lines / {len(text):,} chars omitted]"
+        return f"  → [{n_lines} líneas / {len(text):,} chars omitidos]"
 
     if strategy == "summary_long":
         n_lines = text.count("\n") + 1
         head = "\n".join(text.splitlines()[:5])
         head_indented = "\n".join("    " + ln for ln in head.splitlines())
-        return f"  → [{n_lines} lines / {len(text):,} chars, first 5:]\n{head_indented}"
+        return f"  → [{n_lines} líneas / {len(text):,} chars, primeras 5:]\n{head_indented}"
 
     preserve = tool_name in ("Bash", "Agent", "Task")
     if strategy == "head":
@@ -315,7 +303,7 @@ def should_dedupe(tool_name, args):
 def truncate_text_block(txt, limit=MAX_TEXT_BLOCK):
     if len(txt) <= limit:
         return txt
-    return txt[: limit // 2] + f"\n[... {len(txt) - limit} chars omitted in text block ...]\n" + txt[-limit // 2 :]
+    return txt[: limit // 2] + f"\n[... {len(txt) - limit} chars omitidos en text block ...]\n" + txt[-limit // 2 :]
 
 
 def build_transcript(jsonl_path, mode, preserve_code, dedupe=True, raw=False):
@@ -416,7 +404,7 @@ def rotate_backups():
             try:
                 old.unlink()
             except OSError as e:
-                print(f"[warn] could not delete old backup {old}: {e}", file=sys.stderr)
+                print(f"[warn] no pude borrar backup antiguo {old}: {e}", file=sys.stderr)
 
 
 def backup_clipboard():
@@ -444,27 +432,27 @@ def copy_to_clipboard(text):
 def warn_multi_session(recent, chosen):
     if len(recent) <= 1:
         return
-    print(f"\n⚠ Detected {len(recent)} active sessions in the last 15 min:", file=sys.stderr)
+    print(f"\n⚠ Detectadas {len(recent)} sesiones activas en los últimos 15 min:", file=sys.stderr)
     for p in recent:
         age = int(time.time() - p.stat().st_mtime)
-        marker = " ← selected" if p == chosen else ""
-        print(f"    {p.stem[:8]}  {p.stat().st_size:>10,} B  {age:>4}s ago{marker}", file=sys.stderr)
-    print("    If not correct, use --session <path>\n", file=sys.stderr)
+        marker = " ← elegida" if p == chosen else ""
+        print(f"    {p.stem[:8]}  {p.stat().st_size:>10,} B  hace {age:>4}s{marker}", file=sys.stderr)
+    print("    Si no es la correcta, usa --session <path>\n", file=sys.stderr)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compress Claude Code session to clipboard")
+    parser = argparse.ArgumentParser(description="Comprimir sesión Claude Code al portapapeles")
     parser.add_argument("mode", nargs="?", default="conservative",
                         choices=["conservative", "aggressive", "auto"])
     parser.add_argument("--preserve-code", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--session", help="Path to a specific JSONL (default: most recent)")
+    parser.add_argument("--session", help="Path a un JSONL específico (default: más reciente)")
     parser.add_argument("--no-backup", action="store_true")
     parser.add_argument("--no-clipboard-backup", action="store_true")
     parser.add_argument("--no-dedupe", action="store_true",
-                        help="Disable dedup of identical tool_results")
+                        help="Desactiva dedup de tool_results idénticos")
     parser.add_argument("--raw", action="store_true",
-                        help="Ultra-literal mode: no truncate, no dedupe, no post_compress. Only strips harness noise.")
+                        help="Modo ultra-literal: sin truncar, sin dedupe, sin post_compress. Solo elimina ruido del harness.")
     args = parser.parse_args()
 
     recent_candidates = []
@@ -475,24 +463,24 @@ def main():
         jsonl_path, recent_candidates, fallback_used = find_current_session()
 
     if not jsonl_path or not jsonl_path.exists() or not jsonl_path.is_file():
-        print(f"[ERROR] No current session JSONL found (cwd={Path.cwd()}, searching in {PROJECTS_ROOT})", file=sys.stderr)
+        print(f"[ERROR] No se encontró JSONL de sesión actual (cwd={Path.cwd()}, buscando en {PROJECTS_ROOT})", file=sys.stderr)
         sys.exit(1)
 
     try:
         with open(jsonl_path, "rb") as _f:
             magic = _f.read(2)
         if magic == b"\x1f\x8b":
-            print(f"[ERROR] File appears to be gzip, not JSONL: {jsonl_path}", file=sys.stderr)
+            print(f"[ERROR] El archivo parece gzip, no JSONL: {jsonl_path}", file=sys.stderr)
             sys.exit(1)
     except PermissionError:
-        print(f"[ERROR] Permission denied: {jsonl_path}", file=sys.stderr)
+        print(f"[ERROR] Sin permiso de lectura: {jsonl_path}", file=sys.stderr)
         sys.exit(1)
     except OSError as e:
-        print(f"[ERROR] Could not open {jsonl_path}: {e}", file=sys.stderr)
+        print(f"[ERROR] No pude abrir {jsonl_path}: {e}", file=sys.stderr)
         sys.exit(1)
 
     if fallback_used:
-        print(f"⚠ cwd={Path.cwd()} has no JSONLs in {PROJECTS_ROOT}. Using most recent global session: {jsonl_path.stem[:8]}", file=sys.stderr)
+        print(f"⚠ cwd={Path.cwd()} no tiene JSONLs en {PROJECTS_ROOT}. Usando sesión más reciente global: {jsonl_path.stem[:8]}", file=sys.stderr)
     if recent_candidates:
         warn_multi_session(recent_candidates, jsonl_path)
 
@@ -501,10 +489,10 @@ def main():
     mode = args.mode
     if mode == "auto":
         if original_size < 80_000:
-            print(f"[SKIP] Small session ({original_size:,} bytes). Not worth compacting. Use 'conservative' if you insist.")
+            print(f"[SKIP] Sesión pequeña ({original_size:,} bytes). No vale compactar. Usa 'conservative' si insistes.")
             sys.exit(0)
         mode = "aggressive" if original_size > 1_500_000 else "conservative"
-        print(f"[auto] mode selected: {mode}")
+        print(f"[auto] modo elegido: {mode}")
 
     transcript, stats = build_transcript(
         jsonl_path, mode=mode, preserve_code=args.preserve_code,
@@ -517,11 +505,32 @@ def main():
     session_id = jsonl_path.stem
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     header = (
-        f"## Session digest — {now} · {session_id[:8]} · mode={mode}\n"
-        f"(Previous conversation resume. Compressed transcript of {stats['turns']} turns.\n"
-        f" Legend: U=user, A=assistant, `[Tool args]` = call, `→` = result.\n"
-        f" `[same output as previous ... · unchanged]` = tool_result identical to previous, omitted.\n"
-        f" Original JSONL preserved at {jsonl_path})\n\n"
+        f"# Project state — briefing document\n"
+        f"\n"
+        f"**Read this as a reference document, not as a prior conversation.** I am the user "
+        f"and I'm deliberately pasting this at the start of a fresh session to give you "
+        f"context on the project I'm working on. The content below is a compressed snapshot "
+        f"of files edited, commands run, and decisions made so far ({stats['turns']} turns "
+        f"distilled from a JSONL transcript).\n"
+        f"\n"
+        f"**What to do**: absorb this as background, then wait for my next instruction. "
+        f"Treat it like documentation a colleague handed you — not like a conversation you "
+        f"need to continue or respond to turn by turn.\n"
+        f"\n"
+        f"**Format legend**:\n"
+        f"- `U:` = things I (user) said\n"
+        f"- `A:` = things you (assistant) said previously\n"
+        f"- `[Tool args]` = tool invocations (Read, Bash, Edit, etc.)\n"
+        f"- `→` = tool result (may be truncated with `[... N lines omitted ...]`)\n"
+        f"- `[same output as previous ... · unchanged]` = a tool_result identical to an earlier one, collapsed\n"
+        f"\n"
+        f"**Metadata**: generated {now}, source session `{session_id[:8]}`, mode `{mode}`. "
+        f"Original JSONL preserved at `{jsonl_path}` (untouched).\n"
+        f"\n"
+        f"After reading, acknowledge with a one-line summary of project state and await my next message. Do not re-execute tool calls from the briefing.\n"
+        f"\n"
+        f"---\n"
+        f"\n"
     )
     full = header + transcript
 
@@ -543,7 +552,7 @@ def main():
             backup_path.write_text(full, encoding="utf-8")
             rotate_backups()
         except OSError as e:
-            print(f"[warn] could not save backup in {BACKUPS_DIR}: {e}", file=sys.stderr)
+            print(f"[warn] no pude guardar backup en {BACKUPS_DIR}: {e}", file=sys.stderr)
             backup_path = None
 
     clip_backup_path = None
@@ -561,43 +570,43 @@ def main():
     print(f"  /compact-manual ({mode})   {jsonl_path.name}")
     print(f"  ─────────────────────────────────────────────────────────────")
     print(f"  Original:    {original_size:>10,} bytes  (~{original_tokens:>7,} tokens)")
-    print(f"  Compressed:  {compressed_size:>10,} chars  (~{compressed_tokens:>7,} tokens)")
-    print(f"  Ratio:       {ratio*100:>10.1f}%        →   saved ~{saved_tokens:,} tokens")
-    print(f"  Turns:       {stats['turns']:>10}   (user {stats['user_msgs']} / assistant {stats['assistant_msgs']})")
+    print(f"  Comprimido:  {compressed_size:>10,} chars  (~{compressed_tokens:>7,} tokens)")
+    print(f"  Ratio:       {ratio*100:>10.1f}%        →   ahorro ~{saved_tokens:,} tokens")
+    print(f"  Turnos:      {stats['turns']:>10}   (user {stats['user_msgs']} / assistant {stats['assistant_msgs']})")
     print(f"  Tools:       {tools_summary or '—'}")
     if stats.get("deduped"):
-        print(f"  Dedup:       {stats['deduped']} duplicate tool_results collapsed to reference")
+        print(f"  Dedup:       {stats['deduped']} tool_results duplicados colapsados a referencia")
     if backup_path:
         print(f"  Backup:      {backup_path}")
     if clip_backup_path:
-        print(f"  Previous clipboard saved to: {clip_backup_path}")
+        print(f"  Clipboard previo guardado en: {clip_backup_path}")
     print()
 
     if args.dry_run:
-        print("  [DRY-RUN] Clipboard and backup skipped (dry-run).")
+        print("  [DRY-RUN] No se copió al portapapeles ni se guardó backup.")
         print()
         preview = full[:1500]
-        print("--- Preview (first 1500 chars) ---")
+        print("--- Preview (primeros 1500 chars) ---")
         print(preview)
         if len(full) > 3000:
-            print("\n--- Preview (last 800 chars) ---")
+            print("\n--- Preview (últimos 800 chars) ---")
             print(full[-800:])
         return
 
     if copied:
-        print(f"  ✓ Copied to clipboard ({compressed_size:,} chars)")
+        print(f"  ✓ Copiado al portapapeles ({compressed_size:,} chars)")
         print()
-        print(f"  Next step — clean session with the transcript as the only context:")
-        print(f"    1.  /clear       ← create new session (clean JSONL)")
-        print(f"    2.  Cmd+V        ← paste transcript")
-        print(f"    3.  Enter        ← send")
+        print(f"  Siguiente paso — sesión limpia con el transcript como único contexto:")
+        print(f"    1.  /clear       ← crea sesión nueva (JSONL limpio)")
+        print(f"    2.  Cmd+V        ← pegar transcript")
+        print(f"    3.  Enter        ← enviar")
         if backup_path:
             print()
-            print(f"  If you lose the clipboard before pasting:  pbcopy < {backup_path}")
+            print(f"  Si pierdes el portapapeles antes de pegar:  pbcopy < {backup_path}")
     else:
-        print(f"  ✗ pbcopy failed: {copy_err}")
+        print(f"  ✗ pbcopy falló: {copy_err}")
         if backup_path:
-            print(f"    Copy manually with:  pbcopy < {backup_path}")
+            print(f"    Copia manualmente con:  pbcopy < {backup_path}")
 
 
 if __name__ == "__main__":
