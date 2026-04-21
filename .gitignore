@@ -10,3 +10,5 @@ venv/
 .vscode/
 *.log
 test-sessions/
+ULTIMACONVERSACION.md
+.claude/

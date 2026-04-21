@@ -2,7 +2,7 @@
 
 ## Reporting
 
-If you find a security issue, email **redacted@example.com** directly instead of opening a public issue.
+If you find a security issue, please report it privately via [GitHub Security Advisories](https://github.com/mario-hernandez/claude-compact-manual/security/advisories/new) instead of opening a public issue.
 
 ## Scope
 
